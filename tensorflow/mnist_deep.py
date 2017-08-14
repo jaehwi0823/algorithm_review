@@ -70,66 +70,65 @@ def deepnn(x):
 	b_fc2 = bias_variable([10])
 	y_conv =tf.matmul(h_fc1_drop, W_fc2) +b_fc2
 
-
 	return y_conv, keep_prob
 
 
 def conv2d(x, W):
-	"""conv2d returns a 2d convolution layer with full stride."""
-	return  tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
+	return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
 
 def max_pool_2x2(x):
-	"""max_pool_2x2 downsamples a feature map by 2X."""
 	return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
 
 def weight_variable(shape):
-	"""weight_variable generates a weight variable of a given shape."""
-	initial =tf.truncated_normal(shape, stddev=0.1)
+	initial = tf.truncated_normal(shape, stddev=0.1)
 	return tf.Variable(initial)
 
 
 def bias_variable(shape):
-	"""bias_variable generates a bias variable of a given shape."""
-	initial =tf.constant(0.1, shape=shape)
+	initial = tf.constant(0.1, shape=shape)
 	return tf.Variable(initial)
 
 
 def main(_):
-	# Import data
-	mnist =input_data.read_data_sets(FLAGS.data_dir, one_hot=True)
+	# 데이터 불러오고
+	mnist = input_data.read_data_sets(FLAGS.data_dir, one_hot=True)
+	# Placeholder로 인풋과 라벨 생성
+	x = tf.placeholder(tf.float32, [None, 784])
+	y_ = tf.placeholder(tf.float32, [None, 10])
+	# 그래프 생성
+	y_conv, keep_prob = deepnn(x)
 
-	# Create the model
-	x =tf.placeholder(tf.float32, [None, 784])
+	# Loss 설정: y_conv가 예측값, y_가 실제값
+	cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_conv))
+	# Optimizer 설정: ADAM, learning_rate=10^-4
+	train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 
-	# Define loss and optimizer
-	y_ =tf.placeholder(tf.float32, [None, 10])
+	# argmax는 값이 가장 큰 index를 반환하므로 정답과 예측의 인덱스가 같은지를 확인
+	# correct_prediction의 shape은 [10]
+	correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
+	accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-	# Build the graph for the deep net
-	y_conv, keep_prob =deepnn(x)
-
-	cross_entropy =tf.reduce_mean(
-	tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_conv))
-	train_step =tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
-	correct_prediction =tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
-	accuracy =tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
+	# Graph 연산을 위해 Session 생성
 	with tf.Session() as sess:
+		# 일단 변수 초기화
 		sess.run(tf.global_variables_initializer())
+
+		# 학습 & 정확도
 		for i in range(20000):
-			batch =mnist.train.next_batch(50)
-			if i %100==0:
-				train_accuracy =accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0})
-			print('step %d, training accuracy %g'%(i, train_accuracy))
+			batch = mnist.train.next_batch(50)
+			if i % 100 == 0:
+				train_accuracy = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0})
+				print('step %d, training accuracy %g' % (i, train_accuracy))
 			train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
 
-		print('test accuracy %g'%accuracy.eval(feed_dict={
-		x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0}))
+		print('test accuracy %g' % accuracy.eval(feed_dict={x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0}))
 
-	if __name__ == '__main__':
-		parser =argparse.ArgumentParser()
-		parser.add_argument('--data_dir', type=str, default='/tmp/tensorflow/mnist/input_data',
-							help='Directory for storing input data')
-		FLAGS, unparsed =parser.parse_known_args()
-		tf.app.run(main=main, argv=[sys.argv[0]] +unparsed)
+
+if __name__ == '__main__':
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--data_dir', type=str, default='/tmp/tensorflow/mnist/input_data',
+						help='Directory for storing input data')
+	FLAGS, unparsed = parser.parse_known_args()
+	tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
