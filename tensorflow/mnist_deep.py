@@ -22,7 +22,7 @@ def deepnn(x):
 
   Returns:
     A tuple (y, keep_prob).
-    y: 0~9에 대한 확률값을 갖는 텐서이며, 크 shape은 (N_examples, 10)
+    y: 0~9에 대한 확률값을 갖는 텐서이며, shape은 (N_examples, 10)
   """
   # CNN 구조에 맞게 Reshape!
   # tf.reshape()에서 -1은 특수값으로 전체 차원을 유지하는 수가 자동으로 할당되며, tf.reshape[-1]은 1-D flattening 효과가 있음.
