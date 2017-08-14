@@ -16,65 +16,72 @@ FLAGS = None
 
 # 아키텍쳐 생성 함수
 def deepnn(x):
-    """
-    Args:
-      x: MNIST image input tensor of shape (N_examples, 784)
+	"""
+	Args:
+	  x: MNIST image input tensor of shape (N_examples, 784)
 
-    Returns:
-      A tuple (y, keep_prob).
-      y: 0~9에 대한 확률값을 갖는 텐서이며, shape은 (N_examples, 10)
-    """
-    # CNN 구조에 맞게 Reshape!
-    # tf.reshape()에서 -1은 특수값으로 전체 차원을 유지하는 수가 자동으로 할당되며, tf.reshape[-1]은 1-D flattening 효과가 있음.
-    x_image =tf.reshape(x, [-1, 28, 28, 1])
+	Returns:
+	  A tuple (y, keep_prob).
+	  y: 0~9에 대한 확률값을 갖는 텐서이며, shape은 (N_examples, 10)
+	  keep_prob: dropout 확률
+	"""
+	# CNN 구조에 맞게 Reshape!
+	# tf.reshape()에서 -1은 특수값으로 전체 차원을 유지하는 수가 자동으로 할당되며, tf.reshape[-1]은 1-D flattening 효과가 있음.
+	x_image =tf.reshape(x, [-1, 28, 28, 1])
 
-    # Shape Parameter대로 각 tf변수 및 tf상수를 초기화&생성 해준다.
-    # 첫번째 Conv Layer에서 feature map 수는 32개로 증가시킨다.
-    # 첫번째 Conv Layer는 Relu를 Activation Func으로 사용한다.
-    W_conv1 = weight_variable([5, 5, 1, 32])
-    b_conv1 = bias_variable([32])
-    h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
+	# Shape Parameter대로 각 tf변수 및 tf상수를 초기화&생성 해준다.
+	# 첫번째 Conv Layer에서 feature map 수는 32개로 증가시킨다.
+	# 첫번째 Conv Layer는 Relu를 Activation Func으로 사용한다.
+	W_conv1 = weight_variable([5, 5, 1, 32])
+	b_conv1 = bias_variable([32])
+	h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
 
-    # Pooling layer - downsamples by 2X.
-    h_pool1 =max_pool_2x2(h_conv1)
+	# relu를 통과한 직후 max pooling
+	# shape: [-1, 14, 14, 32]
+	h_pool1 = max_pool_2x2(h_conv1)
 
-    # Second convolutional layer -- maps 32 feature maps to 64.
-    W_conv2 =weight_variable([5, 5, 32, 64])
-    b_conv2 =bias_variable([64])
-    h_conv2 =tf.nn.relu(conv2d(h_pool1, W_conv2) +b_conv2)
+	# 두번째 필터는 feature map을 32개에서 64개로 증폭
+	W_conv2 =weight_variable([5, 5, 32, 64])
+	b_conv2 =bias_variable([64])
+	h_conv2 =tf.nn.relu(conv2d(h_pool1, W_conv2) +b_conv2)
 
-    # Second pooling layer.
-    h_pool2 =max_pool_2x2(h_conv2)
+	# relu를 통과한 직후 max pooling
+	# shape: [-1, 7, 7, 64]
+	h_pool2 = max_pool_2x2(h_conv2)
 
-    # Fully connected layer 1 -- after 2 round of downsampling, our 28x28 image
-    # is down to 7x7x64 feature maps -- maps this to 1024 features.
-    W_fc1 =weight_variable([7*7*64, 1024])
-    b_fc1 =bias_variable([1024])
+	# FC로 연결하기 위해서 7*7*64 -> 1024 를 연결해주는 변수생성
+	W_fc1 = weight_variable([7*7*64, 1024])
+	b_fc1 = bias_variable([1024])
 
-    h_pool2_flat =tf.reshape(h_pool2, [-1, 7*7*64])
-    h_fc1 =tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) +b_fc1)
+	# 두번째 pooling layer을 통과한 후의 shape: [-1, 7, 7, 64] -> -[1, 7*7*64])
+	h_pool2_flat = tf.reshape(h_pool2, [-1, 7*7*64])
+	# relu를 지나며 shape: [-1, 1024]
+	h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
 
-    # Dropout - controls the complexity of the model, prevents co-adaptation of
-    # features.
-    keep_prob =tf.placeholder(tf.float32)
-    h_fc1_drop =tf.nn.dropout(h_fc1, keep_prob)
+	#Dropout을 통해 Regularization
+	#Dropout을 할 때 keep_prop의 확률만큼만 노드들을 살리고 나머지는 죽인다.
+	#대신 살아남은 노드들은 1/keep_prop만큼 scale-up시킨다.
+	#왜냐하면 drop된 노드들 때문에 원래 모형이 예측하려는 값보다 전체 결과값이 줄어들었기 때문
+	keep_prob = tf.placeholder(tf.float32)
+	h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
-    # Map the 1024 features to 10 classes, one for each digit
-    W_fc2 =weight_variable([1024, 10])
-    b_fc2 =bias_variable([10])
+	# 두번째 FC를 이용해서 1024차원에서 10차원 (최종결과)로 mapping 해준다.
+	W_fc2 = weight_variable([1024, 10])
+	b_fc2 = bias_variable([10])
+	y_conv =tf.matmul(h_fc1_drop, W_fc2) +b_fc2
 
-    y_conv =tf.matmul(h_fc1_drop, W_fc2) +b_fc2
-    return y_conv, keep_prob
+
+	return y_conv, keep_prob
 
 
 def conv2d(x, W):
-    """conv2d returns a 2d convolution layer with full stride."""
-    return  tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
+	"""conv2d returns a 2d convolution layer with full stride."""
+	return  tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
 
 def max_pool_2x2(x):
-    """max_pool_2x2 downsamples a feature map by 2X."""
-    return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+	"""max_pool_2x2 downsamples a feature map by 2X."""
+	return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
 
 def weight_variable(shape):
@@ -112,8 +119,8 @@ def main(_):
 		sess.run(tf.global_variables_initializer())
 		for i in range(20000):
 			batch =mnist.train.next_batch(50)
-			ifi %100==0:
-			train_accuracy =accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0})
+			if i %100==0:
+				train_accuracy =accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0})
 			print('step %d, training accuracy %g'%(i, train_accuracy))
 			train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
 
